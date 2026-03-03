@@ -1,0 +1,14 @@
+[project]
+name = "slnm_method"
+version = "0.1.0"
+description = "this venv is for running slnm method analysis in python"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "ipykernel>=7.2.0",
+    "matplotlib>=3.10.8",
+    "nibabel>=5.3.3",
+    "nilearn>=0.13.1",
+    "seaborn>=0.13.2",
+    "tqdm>=4.67.3",
+]
