@@ -38,7 +38,13 @@ To run these project scripts, create a virtual environment using `uv sync`, deta
 
 ## Data
 
-All data required to reproduce the analyses #2 and #4 are included in the `data/` directory. No additional downloads are needed.
+Simulated data required to reproduce the analyses #2 and #4 are included in the `data/` directory. 
+
+Brain analyses are performed in MNI152 space downloaded from a previous LNM study (https://github.com/nimlab/NHB_Taylor2023), to download the file please run this command:
+
+```bash
+curl -L https://github.com/nimlab/NHB_Taylor2023/raw/master/MNI152_T1_2mm_brain_mask_dil.nii.gz -o data/templates/Taylor_NHB_MNI152_T1_2mm_brain_mask_dil.nii.gz
+```
 
 > **Note:** Clinical datasets (TMS-depression and Broca's aphasia) are not included in this repository as they contain patient data. To reproduce analyses #1 and #3, please obtain the data directly from the original publications (see Datasources below).
 
