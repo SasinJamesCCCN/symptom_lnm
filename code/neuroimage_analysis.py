@@ -128,6 +128,72 @@ def nifti_getdata(nifti_path, brain_template_path=None):
 
     return nifti_flattened
 
+def gen_dataset(subject_maps, ground_truth_maps, sample_size=100, effect_size=0.3,
+                ground_truth_seed=None, z_transform = False, lesion_seed = None):
+    """
+    Generate a simulated dataset with synthetic behavioral scores.
+
+    Bootstraps subjects from lesion FC maps and creates behavioral scores
+    by correlating each subject's FC map with a ground truth Schaefer region map,
+    scaled by a specified effect size with added noise.
+
+    Parameters
+    ----------
+    subject_maps      : list of paths to subject FC NIfTI files
+    ground_truth_maps : list of paths to Schaefer region FC NIfTI files
+    sample_size       : number of subjects to bootstrap (default: 100)
+    effect_size       : strength of brain-behavior relationship (default: 0.3)
+    ground_truth_seed : index of ground truth map to use (random if None)
+    rank              : if True, rank-transform the brain-behavior correlations
+
+    Returns
+    -------
+    dict with 'subject_maps' (n_subjects x voxels), 'ground_truth' (voxels,), 'scores' (n_subjects,)
+    """
+    # Bootstrap subjects
+    rng = np.random.default_rng(lesion_seed) # if None, lesions were drawn randomly
+    subject_indices = rng.choice(len(subject_maps), size=sample_size, replace=True)
+    subject_fc_array = np.array([nifti_getdata(subject_maps[i]) for i in subject_indices])
+
+    # Interpolate any NaN voxels using neighboring voxel values
+    nan_mask = np.isnan(subject_fc_array)
+    if np.any(nan_mask):
+        for i, j in zip(*np.where(nan_mask)):
+            neighbors = []
+            if j > 0 and not np.isnan(subject_fc_array[i, j-1]):
+                neighbors.append(subject_fc_array[i, j-1])
+            if j < subject_fc_array.shape[1]-1 and not np.isnan(subject_fc_array[i, j+1]):
+                neighbors.append(subject_fc_array[i, j+1])
+            if neighbors:
+                subject_fc_array[i, j] = np.mean(neighbors)
+
+    # Select ground truth Schaefer region map
+    if ground_truth_seed is None:
+        ground_truth_seed = np.random.randint(len(ground_truth_maps))
+    ground_truth_map = nifti_getdata(ground_truth_maps[ground_truth_seed])
+
+    # Correlate each subject's FC map with the ground truth map
+    r_ground_truth = pearson_rows(subject_fc_array, ground_truth_map)
+
+    if z_transform:
+
+        r_ground_truth = np.arctanh(r_ground_truth) # optional analysis
+    
+
+    # Scale by effect size, add noise, and z-score to produce synthetic behavioral scores
+    r_scaled = r_ground_truth * np.sqrt(effect_size / (1 - effect_size))
+    noise = np.random.normal(0, 1.0, size=subject_fc_array.shape[0])
+    scores = r_scaled + noise
+    scores = (scores - np.mean(scores)) / np.std(scores)
+
+    return {
+        'subject_maps': subject_fc_array,
+        'ground_truth': ground_truth_map,
+        'scores': scores,
+        'ground_truth_seed': ground_truth_seed
+    }
+
+
 
 # ── Surface visualization ─────────────────────────────────────────────────────
 
@@ -205,7 +271,6 @@ class SchaeferVisualizer:
                 cmap=self.hot_cold,
                 colorbar=True,
                 cbar_tick_format='%6.2f',
-                darkness=None,
                 vmax=np.max(np.abs(hemi_map)),
                 title=f"{title} - {side.capitalize()} Hemisphere" if hemi == 'both' else title,
                 view=view,
@@ -248,6 +313,7 @@ __all__ = [
     'voxel_outcome_correlation',
     'pearson_rows',
     'nifti_getdata',
+    'gen_dataset'
     'recon_tmap',
     'SchaeferVisualizer',
 ]
